@@ -5,13 +5,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 from sklearn.preprocessing import MinMaxScaler
 
+
 def min_max_scale(data):
   scaler = MinMaxScaler()
   scaler.fit(data)
   return scaler.transform(data)
 
+
 class NN:
-  def __init__(self, X, y, hidden_layers=None, loss_function='mae', bias=0):
+  def __init__(self, X, y, hidden_layers=None, loss_function='mae', bias=0, validation_percent=.2, train=True):
     self.X = np.array(X)
     self.y = np.array(y)
     self.y = self.y.reshape(self.y.shape[0], 1)
@@ -19,7 +21,22 @@ class NN:
     self.bias = bias
     if hidden_layers:
       self.generate_layers(hidden_layers)
+    if train:
+      self.test_train_split(validation_percent)
 
+
+  def test_train_split(self, validation_percent):
+    if validation_percent >= 1:
+      self.validation_percent //= 100
+    self.validation_count = int(len(self.X) * validation_percent)
+    indexes = np.array([i for i in range(len(self.X))])
+    indexes = indexes[:self.validation_count]
+
+    self.X_validation = self.X[indexes]
+    self.y_validation = self.y[indexes]
+
+    self.X = np.delete(self.X, indexes, axis=0)
+    self.y = np.delete(self.y, indexes, axis=0)
 
   def generate_layers(self, hidden_layers):
     self.hidden_layers = hidden_layers
@@ -64,24 +81,31 @@ class NN:
     return loss_function(error)
 
 
-  def backward(self, back_prop=True):
-    for i in reversed(self.schema_len):   # calculation loss
+  def backward(self, back_prop=True, validation=False):
+    for i in reversed(self.schema_len):
       i += 1
       l = getattr(self, f'l{i}')
       if i == len(self.schema_len):
-        error = self.y - l
-        self.error = self.loss(error)
+        if validation:
+          error = self.y_validation - l
+          self.validation_error = self.loss(error)
+        else:
+          error = self.y - l
+          self.error = self.loss(error)
       else:
         delta, W = (getattr(self, j) for j in f'l{i}delta W{i}'.split())
         error = delta.dot(W.T)
       setattr(self, f'l{i-1}delta', error * self.nonlin(l, deriv=True))
 
-    if back_prop:
-      for i in reversed(self.schema_len):   # adjusting weights
+    if back_prop: # adjust weights
+      for i in reversed(self.schema_len):
         l, W, delta = (getattr(self, j) for j in f'l{i} W{i} l{i}delta'.split())
         delta = l.T.dot(delta)
         setattr(self, f'W{i}', W + delta)
 
+  def validate(self):
+    self.forward(self.X_validation)
+    self.backward(back_prop=False, validation=True)
 
 
   def train(self, epochs=1000, print_nth_epoch=100):
@@ -89,7 +113,8 @@ class NN:
       self.forward()
       self.backward()
       if print_nth_epoch and not j % print_nth_epoch:
-        print(f'Test error: {self.error}')
+        self.validate()
+        print(f'Test error: {round(self.error, 6)}\t Validation Error: {round(self.validation_error, 6)}')
 
 
   def predict(self, x):
