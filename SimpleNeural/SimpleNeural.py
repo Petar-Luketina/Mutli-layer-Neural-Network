@@ -13,15 +13,18 @@ def min_max_scale(data):
 
 
 class NN:
-  def __init__(self, X, y, hidden_layers=None, loss_function='mae', bias=0, validation_percent=.2, train=True):
+  def __init__(self, X, y, hidden_layers=None, loss_function='mae', bias=0, validation_percent=.2, validation_set=True):
     self.X = np.array(X)
     self.y = np.array(y)
     self.y = self.y.reshape(self.y.shape[0], 1)
     self.loss_function = loss_function
     self.bias = bias
+    self.train_scores = []
+    self.validation_scores = []
+    self.validation_set = validation_set
     if hidden_layers:
       self.generate_layers(hidden_layers)
-    if train:
+    if validation_set:
       self.test_train_split(validation_percent)
 
 
@@ -113,13 +116,33 @@ class NN:
       self.forward()
       self.backward()
       if print_nth_epoch and not j % print_nth_epoch:
-        self.validate()
-        print(f'Test error: {round(self.error, 6)}\t Validation Error: {round(self.validation_error, 6)}')
-
+        if self.validation_set:
+          self.validate()
+          self.train_scores.append(self.error)
+          self.validation_scores.append(self.validation_error)
+          print(f'Test error: {round(self.error, 6)}\t Validation Error: {round(self.validation_error, 6)}')
+        else:
+          self.train_scores.append(self.error)
+          print(f'Test error: {round(self.error, 6)}')
 
   def predict(self, x):
     return self.forward(x)
 
+
+  def plot_test_validation(self):
+    x1 = self.train_scores
+    x2 = self.validation_scores
+
+    fig, ax = plt.subplots(figsize=(20,10))
+    ax = plt.plot(x1, label='Training')
+    ax = plt.plot(x2, label='Validation')
+    fig.legend(prop={'size': 20})
+    plt.show()
+
+
+  # *** WARNING ***
+  # The below code is experimental atypical of a neural network.
+  # Disregard the below code for now.
 
   def genetic_alogrithm(self, population_size=30, mutation_rate=0.05, algorithm_epochs=30, nn_epochs=400):
 
