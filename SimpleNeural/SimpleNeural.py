@@ -13,12 +13,13 @@ def min_max_scale(data):
 
 
 class NN:
-  def __init__(self, X, y, hidden_layers=None, loss_function='mae', bias=0, validation_percent=.2, validation_set=True):
+  def __init__(self, X, y, hidden_layers=None, loss_function='mae', bias=0, validation_percent=.2, validation_set=True, lr=1):
     self.X = np.array(X)
     self.y = np.array(y)
     self.y = self.y.reshape(self.y.shape[0], 1)
     self.loss_function = loss_function
     self.bias = bias
+    self.lr = lr
     self.train_scores = []
     self.validation_scores = []
     self.validation_set = validation_set
@@ -104,7 +105,7 @@ class NN:
       for i in reversed(self.schema_len):
         l, W, delta = (getattr(self, j) for j in f'l{i} W{i} l{i}delta'.split())
         delta = l.T.dot(delta)
-        setattr(self, f'W{i}', W + delta)
+        setattr(self, f'W{i}', W + delta * self.lr)
 
   def validate(self):
     self.forward(self.X_validation)
