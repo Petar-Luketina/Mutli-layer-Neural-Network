@@ -211,7 +211,7 @@ class NN:
       score.append(self.error)
 
     self.bias_score = list(sorted(zip(score, bias_range), key=lambda x: x[0]))
-    self.bias_score_df = pd.DataFrame(nn.bias_score, columns=['Error', 'Bias'])
+    self.bias_score_df = pd.DataFrame(self.bias_score, columns=['Error', 'Bias'])
 
     fig, ax = plt.subplots(figsize=(15,5))
     plt.xticks([x for x in range(len(bias_range))[::2]], [str(round(x,2)) for x in bias_range[::2]], rotation=90)
