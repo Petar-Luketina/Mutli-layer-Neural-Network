@@ -13,16 +13,18 @@ def min_max_scale(data):
 
 
 class NN:
-  def __init__(self, X, y, hidden_layers=None, loss_function='mae', bias=0, validation_percent=.2, validation_set=True, lr=1):
+  def __init__(self, X, y, hidden_layers=None, loss_function='mae', bias=0,
+               validation_percent=.2, validation_set=True, lr=1, whole_batch=False):
     self.X = np.array(X)
-    self.y = np.array(y)
-    self.y = self.y.reshape(self.y.shape[0], 1)
+    self.Y = np.array(y)
+    self.Y = self.Y.reshape(self.Y.shape[0], 1)
     self.loss_function = loss_function
     self.bias = bias
     self.lr = lr
     self.train_scores = []
     self.validation_scores = []
     self.validation_set = validation_set
+    self.whole_batch = whole_batch
     if hidden_layers:
       self.generate_layers(hidden_layers)
     if validation_set:
@@ -37,15 +39,15 @@ class NN:
     indexes = indexes[:self.validation_count]
 
     self.X_validation = self.X[indexes]
-    self.y_validation = self.y[indexes]
+    self.Y_validation = self.Y[indexes]
 
     self.X = np.delete(self.X, indexes, axis=0)
-    self.y = np.delete(self.y, indexes, axis=0)
+    self.Y = np.delete(self.Y, indexes, axis=0)
 
   def generate_layers(self, hidden_layers):
     self.hidden_layers = hidden_layers
     np.random.seed(1)
-    self.schema = [self.X.shape[1]] + hidden_layers + [self.y.shape[1]]
+    self.schema = [self.X.shape[1]] + hidden_layers + [self.Y.shape[1]]
     self.schema_len = range(len(self.schema[:-1]))
     for i, layer in enumerate(self.schema[:-1]):
       setattr(self, f'W{i}', np.random.uniform(-1, 1, (layer, self.schema[i+1])))
@@ -62,7 +64,10 @@ class NN:
 
   def forward(self, X=None):
     if str(X) == 'None':
-      self.l0 = self.X
+      if self.whole_batch:
+        self.l0 = self.X
+      else:
+        self.l0 = self.x
     else:
       self.l0 = np.array(X)
     for i in self.schema_len:
@@ -91,7 +96,7 @@ class NN:
       l = getattr(self, f'l{i}')
       if i == len(self.schema_len):
         if validation:
-          error = self.y_validation - l
+          error = self.Y_validation - l
           self.validation_error = self.loss(error)
         else:
           error = self.y - l
@@ -113,10 +118,19 @@ class NN:
 
 
   def train(self, epochs=1000, print_nth_epoch=100):
-    for j in range(epochs):
-      self.forward()
-      self.backward()
-      if print_nth_epoch and not j % print_nth_epoch:
+    for epoch in range(epochs):
+      if self.whole_batch:
+        self.x = self.X
+        self.y = self.Y
+        self.forward()
+        self.backward()
+      else:
+        for i in range(len(self.X)):
+          self.x = np.array([self.X[i]])
+          self.y = np.array([self.Y[i]])
+          self.forward()
+          self.backward()
+      if print_nth_epoch and not epoch % print_nth_epoch:
         if self.validation_set:
           self.validate()
           self.train_scores.append(self.error)
